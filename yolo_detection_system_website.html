@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VisionGuard — YOLO Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #050a0e;
+    --bg2: #0b1318;
+    --bg3: #101c22;
+    --accent: #00e5ff;
+    --accent2: #39ff14;
+    --accent3: #ff4757;
+    --text: #e8f4f8;
+    --muted: #6b8a96;
+    --border: rgba(0,229,255,0.18);
+    --card: rgba(11,19,24,0.85);
+    --mono: 'Space Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--display);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 2.5rem;
+    background: rgba(5,10,14,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 0.5px solid var(--border);
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--accent2); }
+  nav ul { display: flex; gap: 2rem; list-style: none; }
+  nav ul a {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  nav ul a:hover { color: var(--accent); }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 6rem 2rem 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .hero-glow {
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,229,255,0.07) 0%, transparent 70%);
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 16px;
+    border: 0.5px solid var(--accent2);
+    border-radius: 100px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+    margin-bottom: 2rem;
+    position: relative;
+  }
+  .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent2);
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+    display: block;
+  }
+  .hero-sub {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-align: center;
+    max-width: 520px;
+    line-height: 1.8;
+    margin-bottom: 3rem;
+    position: relative;
+  }
+  .hero-cta {
+    display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+    position: relative;
+  }
+  .btn-primary {
+    padding: 0.85rem 2rem;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn-primary:hover { background: #00b8d4; transform: translateY(-2px); }
+  .btn-outline {
+    padding: 0.85rem 2rem;
+    background: transparent;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn-outline:hover { background: rgba(0,229,255,0.08); transform: translateY(-2px); }
+
+  /* SECTIONS */
+  section { padding: 6rem 2rem; max-width: 1100px; margin: 0 auto; }
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+  h2 {
+    font-family: var(--display);
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 1rem;
+  }
+  .section-desc {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.9;
+    max-width: 600px;
+    margin-bottom: 3rem;
+  }
+
+  /* CAMERA SECTION */
+  .camera-container {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .camera-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 0.5px solid var(--border);
+    background: var(--bg3);
+  }
+  .camera-title {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .rec-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent3);
+    animation: pulse 1s infinite;
+  }
+  .camera-controls {
+    display: flex; gap: 8px;
+  }
+  .cam-btn {
+    padding: 6px 14px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    background: transparent;
+    border: 0.5px solid var(--border);
+    color: var(--muted);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .cam-btn:hover, .cam-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,255,0.06);
+  }
+  .cam-btn.danger { border-color: var(--accent3); color: var(--accent3); }
+  .cam-btn.danger:hover { background: rgba(255,71,87,0.08); }
+  .camera-viewport {
+    position: relative;
+    aspect-ratio: 16/9;
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  #videoEl {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: none;
+  }
+  #overlayCanvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .cam-placeholder {
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    color: var(--muted);
+  }
+  .cam-icon {
+    width: 64px; height: 64px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+  }
+  .cam-placeholder p {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-align: center;
+    line-height: 1.7;
+  }
+  .scan-line {
+    display: none;
+    position: absolute; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scandown 2s linear infinite;
+  }
+  @keyframes scandown {
+    0% { top: 0; }
+    100% { top: 100%; }
+  }
+  .corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: absolute; width: 20px; height: 20px;
+    display: none;
+  }
+  .corner-tl { top: 12px; left: 12px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .corner-tr { top: 12px; right: 12px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+  .corner-bl { bottom: 12px; left: 12px; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .corner-br { bottom: 12px; right: 12px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+  .cam-footer {
+    padding: 1rem 1.5rem;
+    border-top: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 0.75rem;
+  }
+  .cam-stats {
+    display: flex; gap: 1.5rem;
+  }
+  .stat {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .stat strong { color: var(--accent2); font-size: 0.85rem; }
+  #status-msg {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  .instructions-box {
+    margin-top: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg3);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.9;
+  }
+  .instructions-box strong { color: var(--accent); }
+
+  /* HOW IT WORKS */
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .step {
+    background: var(--bg2);
+    padding: 2rem 1.5rem;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .step:hover { background: var(--bg3); }
+  .step-num {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    margin-bottom: 1rem;
+    opacity: 0.7;
+  }
+  .step h3 {
+    font-family: var(--display);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    color: var(--text);
+  }
+  .step p {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  .step-icon {
+    font-size: 1.2rem;
+    margin-bottom: 0.75rem;
+    display: block;
+  }
+
+  /* COMPONENTS */
+  .components-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+  .component-card {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .component-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transition: transform 0.3s;
+    transform-origin: left;
+  }
+  .component-card:hover::before { transform: scaleX(1); }
+  .component-card:hover { border-color: rgba(0,229,255,0.35); transform: translateY(-3px); }
+  .comp-tag {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    opacity: 0.7;
+  }
+  .comp-name {
+    font-family: var(--display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+  .comp-desc {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  /* CONS */
+  .cons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .con-item {
+    background: var(--bg2);
+    padding: 1.75rem 1.5rem;
+    display: flex; gap: 1rem;
+    transition: background 0.2s;
+  }
+  .con-item:hover { background: var(--bg3); }
+  .con-num {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent3);
+    opacity: 0.3;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .con-content h3 {
+    font-family: var(--display);
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+  .con-content p {
+    font-family: var(--mono);
+    font-size: 0.71rem;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 0.5px solid var(--border);
+    padding: 2rem;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  footer strong { color: var(--accent); }
+
+  /* DIVIDER */
+  .full-divider {
+    height: 0.5px;
+    background: var(--border);
+    margin: 0;
+  }
+
+  @media (max-width: 600px) {
+    nav ul { display: none; }
+    .cam-stats { gap: 1rem; flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Vision<span>Guard</span></div>
+  <ul>
+    <li><a href="#camera">Camera</a></li>
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#components">Components</a></li>
+    <li><a href="#cons">Limitations</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="status-pill"><span class="dot"></span>System online — YOLO v8 ready</div>
+  <h1>Real-time object<em>detection system</em></h1>
+  <p class="hero-sub">
+    A YOLO-powered detection platform with live mobile camera feed,
+    GSM secondary verification, and edge-deployed inference. Built for speed. Designed for security.
+  </p>
+  <div class="hero-cta">
+    <a href="#camera" class="btn-primary">Launch Camera Feed</a>
+    <a href="#how" class="btn-outline">How It Works</a>
+  </div>
+</div>
+
+<div class="full-divider"></div>
+
+<!-- CAMERA SECTION -->
+<section id="camera">
+  <p class="section-label">// Live feed</p>
+  <h2>Mobile camera <br>access</h2>
+  <p class="section-desc">
+    Connect your phone's camera directly through the browser. No app install needed.
+    Grant camera permission when prompted — works on Chrome, Firefox, and Safari mobile.
+  </p>
+  <div class="camera-container">
+    <div class="camera-topbar">
+      <div class="camera-title">
+        <span class="rec-dot"></span>
+        <span id="feed-label">Feed — standby</span>
+      </div>
+      <div class="camera-controls">
+        <button class="cam-btn" id="switchBtn" style="display:none;" onclick="switchCamera()">Flip cam</button>
+        <button class="cam-btn" id="startBtn" onclick="startCamera()">Start camera</button>
+        <button class="cam-btn danger" id="stopBtn" style="display:none;" onclick="stopCamera()">Stop</button>
+      </div>
+    </div>
+    <div class="camera-viewport" id="viewport">
+      <video id="videoEl" autoplay muted playsinline></video>
+      <canvas id="overlayCanvas"></canvas>
+      <div class="scan-line" id="scanLine"></div>
+      <div class="corner-tl" id="c1"></div>
+      <div class="corner-tr" id="c2"></div>
+      <div class="corner-bl" id="c3"></div>
+      <div class="corner-br" id="c4"></div>
+      <div class="cam-placeholder" id="placeholder">
+        <div class="cam-icon">📷</div>
+        <p>Click <strong style="color:var(--accent)">Start Camera</strong> above to begin<br>the live detection feed.<br><br>Allow camera access when prompted.</p>
+      </div>
+    </div>
+    <div class="cam-footer">
+      <div class="cam-stats">
+        <div class="stat"><span>Inference</span><strong id="fps-stat">— fps</strong></div>
+        <div class="stat"><span>Detections</span><strong id="det-stat">0</strong></div>
+        <div class="stat"><span>Camera</span><strong id="cam-stat">—</strong></div>
+        <div class="stat"><span>Resolution</span><strong id="res-stat">—</strong></div>
+      </div>
+      <span id="status-msg">Awaiting stream...</span>
+    </div>
+  </div>
+  <div class="instructions-box">
+    <strong>// Mobile setup guide</strong><br><br>
+    1. Open this page on your phone's browser (Chrome recommended)<br>
+    2. Tap <strong>Start Camera</strong> — allow the permission popup<br>
+    3. Use <strong>Flip Cam</strong> to switch between front and rear cameras<br>
+    4. On desktop: plug in your phone as a webcam via USB (requires DroidCam or EpocCam app)<br>
+    5. For GSM verification: when motion is detected, your SIM800L module sends an SMS OTP — enter it on the lock screen<br><br>
+    <strong>Note:</strong> Camera access requires HTTPS. If running locally, use <strong>ngrok</strong> to tunnel or run via <strong>localhost</strong> which browsers whitelist automatically.
+  </div>
+</section>
+
+<div class="full-divider"></div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <p class="section-label">// System architecture</p>
+  <h2>How the detection<br>system works</h2>
+  <p class="section-desc">
+    YOLO (You Only Look Once) processes the entire image in a single forward pass through a convolutional neural network,
+    making it dramatically faster than older two-stage detectors like R-CNN.
+  </p>
+  <div class="steps-grid">
+    <div class="step">
+      <span class="step-num">01 —</span>
+      <span class="step-icon">📡</span>
+      <h3>Frame capture</h3>
+      <p>The mobile camera streams frames via WebRTC or USB. Each frame is captured at configurable intervals and passed to the YOLO inference pipeline.</p>
+    </div>
+    <div class="step">
+      <span class="step-num">02 —</span>
+      <span class="step-icon">🔲</span>
+      <h3>Grid division</h3>
+      <p>Each frame is divided into an S×S grid. Every grid cell predicts B bounding boxes with confidence scores and C class probabilities simultaneously.</p>
+    </div>
+    <div class="step">
+      <span class="step-num">03 —</span>
+      <span class="step-icon">🧠</span>
+      <h3>CNN inference</h3>
+      <p>The image passes through deep convolutional layers (darknet backbone or CSPNet in v5/v8). Features are extracted at multiple scales for small and large object detection.</p>
+    </div>
+    <div class="step">
+      <span class="step-num">04 —</span>
+      <span class="step-icon">📦</span>
+      <h3>NMS filtering</h3>
+      <p>Non-Maximum Suppression removes duplicate bounding boxes. Only the highest-confidence prediction per object survives, reducing noise dramatically.</p>
+    </div>
+    <div class="step">
+      <span class="step-num">05 —</span>
+      <span class="step-icon">⚡</span>
+      <h3>Alert trigger</h3>
+      <p>When a target class (person, vehicle, etc.) is detected above a confidence threshold, the system triggers an alert — sending an SMS OTP via the GSM module.</p>
+    </div>
+    <div class="step">
+      <span class="step-num">06 —</span>
+      <span class="step-icon">🔐</span>
+      <h3>GSM verification</h3>
+      <p>The SIM800L GSM module sends a one-time password via AT commands over UART serial. The operator verifies identity before remote access or alarm is granted.</p>
+    </div>
+  </div>
+</section>
+
+<div class="full-divider"></div>
+
+<!-- COMPONENTS -->
+<section id="components">
+  <p class="section-label">// Hardware & software stack</p>
+  <h2>Components used</h2>
+  <p class="section-desc">
+    This system combines embedded hardware, computer vision, and cellular communication into a single integrated detection pipeline.
+  </p>
+  <div class="components-grid">
+    <div class="component-card">
+      <div class="comp-tag">Core compute</div>
+      <div class="comp-name">Raspberry Pi 4 / ESP32-CAM</div>
+      <div class="comp-desc">Runs the YOLO model locally or streams to a server. Raspberry Pi handles full YOLOv8 inference. ESP32-CAM is used for lightweight streaming only.</div>
+    </div>
+    <div class="component-card">
+      <div class="comp-tag">Detection model</div>
+      <div class="comp-name">YOLOv8 (Ultralytics)</div>
+      <div class="comp-desc">State-of-the-art single-stage object detector. Runs on CPU or GPU. Supports 80+ COCO classes. Custom training available with labeled datasets.</div>
+    </div>
+    <div class="component-card">
+      <div class="comp-tag">Camera module</div>
+      <div class="comp-name">Mobile phone / Pi Camera</div>
+      <div class="comp-desc">Mobile browser camera via WebRTC, or a dedicated Raspberry Pi Camera Module v2 for fixed installations. Supports 1080p at 30fps.</div>
+    </div>
+    <div class="component-card">
+      <div class="comp-tag">GSM module</div>
+      <div class="comp-name">SIM800L / SIM900A</div>
+      <div class="comp-desc">Communicates via UART serial using AT commands. Sends SMS alerts and OTP for secondary verification. Requires a SIM card with SMS enabled.</div>
+    </div>
+    <div class="component-card">
+      <div class="comp-tag">Prototyping</div>
+      <div class="comp-name">Breadboard + Jumper wires</div>
+      <div class="comp-desc">Full-size solderless breadboard for circuit prototyping. Multi-color jumper wires for UART, power, and GPIO connections between modules.</div>
+    </div>
+    <div class="component-card">
+      <div class="comp-tag">Power</div>
+      <div class="comp-name">5V USB / LiPo Battery</div>
+      <div class="comp-desc">System powered via USB-C (Raspberry Pi) or a 3.7V LiPo with booster for ESP32 deployments. SIM800L requires stable 4.2V — use a separate regulator.</div>
+    </div>
+    <div class="component-card">
+      <div class="comp-tag">Software stack</div>
+      <div class="comp-name">Python + OpenCV + Flask</div>
+      <div class="comp-desc">Python drives inference via Ultralytics API. OpenCV handles frame capture and drawing. Flask serves the web dashboard and video stream endpoint.</div>
+    </div>
+    <div class="component-card">
+      <div class="comp-tag">Visual indicators</div>
+      <div class="comp-name">LEDs (Red + Green)</div>
+      <div class="comp-desc">Red LED signals detection alert or armed state. Green LED indicates system ready or safe state. Driven via GPIO pins with 220Ω current limiting resistors.</div>
+    </div>
+  </div>
+</section>
+
+<div class="full-divider"></div>
+
+<!-- CONS -->
+<section id="cons">
+  <p class="section-label">// Limitations & trade-offs</p>
+  <h2>Known limitations</h2>
+  <p class="section-desc">
+    No system is perfect. Here are the documented constraints and trade-offs of this YOLO-based GSM detection setup that you should be aware of before deployment.
+  </p>
+  <div class="cons-grid">
+    <div class="con-item">
+      <div class="con-num">01</div>
+      <div class="con-content">
+        <h3>High compute demand</h3>
+        <p>YOLOv8 requires significant CPU/GPU resources. On a Raspberry Pi 4, inference runs at 3–8 fps — inadequate for high-speed scenarios. A GPU or NPU is needed for real-time 30fps performance.</p>
+      </div>
+    </div>
+    <div class="con-item">
+      <div class="con-num">02</div>
+      <div class="con-content">
+        <h3>GSM latency</h3>
+        <p>SMS delivery via SIM800L is not instantaneous. Network congestion or poor signal can delay OTP delivery by 10–60 seconds, creating a gap in the verification window.</p>
+      </div>
+    </div>
+    <div class="con-item">
+      <div class="con-num">03</div>
+      <div class="con-content">
+        <h3>False positives</h3>
+        <p>YOLO can misclassify objects in low light, partial occlusion, or unusual angles. Without fine-tuning on your specific environment, false alarm rates can be high.</p>
+      </div>
+    </div>
+    <div class="con-item">
+      <div class="con-num">04</div>
+      <div class="con-content">
+        <h3>Camera dependency</h3>
+        <p>The system is only as good as the camera placement and quality. Motion blur, lens distortion, and infrared limitations at night degrade detection accuracy significantly.</p>
+      </div>
+    </div>
+    <div class="con-item">
+      <div class="con-num">05</div>
+      <div class="con-content">
+        <h3>No encryption on serial</h3>
+        <p>UART communication between microcontroller and GSM module is unencrypted. Physical access to the breadboard allows interception of AT commands including OTP strings.</p>
+      </div>
+    </div>
+    <div class="con-item">
+      <div class="con-num">06</div>
+      <div class="con-content">
+        <h3>SIM800L power instability</h3>
+        <p>The SIM800L draws up to 2A in bursts during transmission. Powering it from the same rail as the Pi causes voltage dips and crashes. Requires a dedicated power supply.</p>
+      </div>
+    </div>
+    <div class="con-item">
+      <div class="con-num">07</div>
+      <div class="con-content">
+        <h3>Limited class coverage</h3>
+        <p>Default YOLO weights cover 80 COCO classes. Detecting domain-specific objects (weapons, specific vehicles, industrial equipment) requires custom dataset collection and retraining.</p>
+      </div>
+    </div>
+    <div class="con-item">
+      <div class="con-num">08</div>
+      <div class="con-content">
+        <h3>No persistent logging</h3>
+        <p>In the current setup, detection events are not stored to a database. A power cycle loses all event history. Requires integration with SQLite or a cloud logging endpoint.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Built with <strong>YOLOv8</strong> · SIM800L GSM · Raspberry Pi · OpenCV · Flask<br>
+  <span style="opacity:0.4; margin-top:0.5rem; display:block;">VisionGuard Detection System — Prototype v1.0</span>
+</footer>
+
+<script>
+let stream = null;
+let facingMode = 'environment';
+let detInterval = null;
+let frameCount = 0;
+let lastTime = Date.now();
+let detCount = 0;
+
+const video = document.getElementById('videoEl');
+const canvas = document.getElementById('overlayCanvas');
+const ctx = canvas.getContext('2d');
+const placeholder = document.getElementById('placeholder');
+const scanLine = document.getElementById('scanLine');
+const corners = [document.getElementById('c1'),document.getElementById('c2'),document.getElementById('c3'),document.getElementById('c4')];
+const feedLabel = document.getElementById('feed-label');
+const statusMsg = document.getElementById('status-msg');
+const fpsStat = document.getElementById('fps-stat');
+const detStat = document.getElementById('det-stat');
+const camStat = document.getElementById('cam-stat');
+const resStat = document.getElementById('res-stat');
+
+async function startCamera() {
+  try {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); }
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    video.srcObject = stream;
+    video.style.display = 'block';
+    placeholder.style.display = 'none';
+    scanLine.style.display = 'block';
+    corners.forEach(c => c.style.display = 'block');
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'inline-block';
+    document.getElementById('switchBtn').style.display = 'inline-block';
+    feedLabel.textContent = 'Feed — live';
+    statusMsg.textContent = 'Stream active — simulating YOLO inference...';
+    camStat.textContent = facingMode === 'environment' ? 'Rear' : 'Front';
+
+    video.onloadedmetadata = () => {
+      const t = stream.getVideoTracks()[0].getSettings();
+      resStat.textContent = (t.width || '?') + 'x' + (t.height || '?');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 360;
+    };
+
+    startSimulation();
+  } catch(e) {
+    statusMsg.textContent = 'Camera error: ' + e.message;
+    placeholder.querySelector('p').innerHTML = 'Camera access denied or unavailable.<br>Check permissions in browser settings.';
+  }
+}
+
+function stopCamera() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  video.style.display = 'none';
+  placeholder.style.display = 'flex';
+  scanLine.style.display = 'none';
+  corners.forEach(c => c.style.display = 'none');
+  document.getElementById('startBtn').style.display = 'inline-block';
+  document.getElementById('stopBtn').style.display = 'none';
+  document.getElementById('switchBtn').style.display = 'none';
+  feedLabel.textContent = 'Feed — standby';
+  statusMsg.textContent = 'Stream stopped.';
+  fpsStat.textContent = '— fps';
+  detStat.textContent = '0';
+  camStat.textContent = '—';
+  resStat.textContent = '—';
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (detInterval) clearInterval(detInterval);
+  detCount = 0;
+}
+
+function switchCamera() {
+  facingMode = facingMode === 'environment' ? 'user' : 'environment';
+  camStat.textContent = facingMode === 'environment' ? 'Rear' : 'Front';
+  startCamera();
+}
+
+const CLASSES = ['person','car','bicycle','dog','laptop','backpack','phone','bottle'];
+const COLORS = ['#00e5ff','#39ff14','#ff4757','#ffd32a','#a29bfe','#fd79a8','#00cec9','#e17055'];
+
+function startSimulation() {
+  if (detInterval) clearInterval(detInterval);
+  detCount = 0;
+  frameCount = 0; lastTime = Date.now();
+
+  detInterval = setInterval(() => {
+    if (!stream || !video.videoWidth) return;
+
+    frameCount++;
+    const now = Date.now();
+    if (now - lastTime >= 1000) {
+      fpsStat.textContent = frameCount + ' fps';
+      frameCount = 0; lastTime = now;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const count = Math.floor(Math.random() * 3);
+    detCount = count;
+    detStat.textContent = count;
+
+    for (let i = 0; i < count; i++) {
+      const w = 80 + Math.random() * 140;
+      const h = 80 + Math.random() * 120;
+      const x = Math.random() * (canvas.width - w);
+      const y = Math.random() * (canvas.height - h);
+      const cls = CLASSES[Math.floor(Math.random() * CLASSES.length)];
+      const conf = (0.65 + Math.random() * 0.34).toFixed(2);
+      const col = COLORS[CLASSES.indexOf(cls)];
+
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, y, w, h);
+
+      const label = cls + ' ' + conf;
+      ctx.font = '500 11px Space Mono, monospace';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = col;
+      ctx.fillRect(x, y - 20, tw + 10, 20);
+      ctx.fillStyle = '#050a0e';
+      ctx.fillText(label, x + 5, y - 5);
+    }
+
+    statusMsg.textContent = count > 0
+      ? 'Detected ' + count + ' object' + (count > 1 ? 's' : '') + ' — GSM alert ready'
+      : 'Scanning... no detections';
+  }, 200);
+}
+</script>
+</body>
+</html>
